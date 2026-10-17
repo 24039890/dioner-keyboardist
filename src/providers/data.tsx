@@ -6,6 +6,7 @@ import { createProgressRepository } from '@/db/repositories/progress';
 import { createRehearsalsRepository } from '@/db/repositories/rehearsals';
 import { type AppSettings, DEFAULT_SETTINGS, createSettingsRepository } from '@/db/repositories/settings';
 import { createSongsRepository } from '@/db/repositories/songs';
+import { createVideoProgressRepository } from '@/db/repositories/videos';
 import type { Db } from '@/db/types';
 import { expoRecordingStore } from '@/features/rehearsals/services/expoRecordingStore';
 import { recoverInterruptedRecordings } from '@/features/rehearsals/services/recordingService';
@@ -47,6 +48,7 @@ export function useRepositories() {
       rehearsals: createRehearsalsRepository(db),
       progress: createProgressRepository(db),
       settings: createSettingsRepository(db),
+      videos: createVideoProgressRepository(db),
     };
   }, [sqlite]);
 }

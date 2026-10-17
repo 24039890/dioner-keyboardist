@@ -7,10 +7,18 @@ export interface NativeMidiDevice {
   outputPorts: number;
 }
 
+export interface NativeBluetoothDevice {
+  address: string;
+  name: string;
+  rssi: number;
+}
+
 export type DionerMidiEvents = {
   onMidiData(event: { deviceId: number; bytes: number[]; timestamp: number }): void;
   onDevicesChanged(event: { devices: NativeMidiDevice[] }): void;
   onDeviceError(event: { deviceId: number; reason: 'disconnected' }): void;
+  onBluetoothDevicesFound(event: { devices: NativeBluetoothDevice[] }): void;
+  onBluetoothScanStopped(event: { error: string | null }): void;
 };
 
 declare class DionerMidiModule extends NativeModule<DionerMidiEvents> {
@@ -18,6 +26,10 @@ declare class DionerMidiModule extends NativeModule<DionerMidiEvents> {
   getDevices(): NativeMidiDevice[];
   openDevice(deviceId: number): Promise<NativeMidiDevice>;
   closeDevice(): void;
+  isBluetoothReady(): boolean;
+  startBluetoothScan(): Promise<null>;
+  stopBluetoothScan(): void;
+  openBluetoothDevice(address: string): Promise<NativeMidiDevice>;
 }
 
 /**

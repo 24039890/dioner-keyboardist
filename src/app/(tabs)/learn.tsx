@@ -103,9 +103,26 @@ export default function LearnScreen() {
       {result.status === 'error' ? <Banner tone="error">Progress could not be loaded. Lessons still work.</Banner> : null}
 
       <SectionHeading title="Video tutorials" />
-      {videos.isConfigured() ? null : (
+      {videos.isConfigured() ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push('/learn/videos')}
+          style={({ pressed }) => [styles.lesson, pressed && { backgroundColor: colors.light }]}
+        >
+          <View style={styles.num}>
+            <Icon name="logo-youtube" size={18} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <AppText variant="bodyStrong">Browse video tutorials</AppText>
+            <AppText color={colors.textSecondary} variant="caption">
+              Scales, chords, number system, worship accompaniment and more — from YouTube.
+            </AppText>
+          </View>
+          <Icon name="chevron-forward" size={18} />
+        </Pressable>
+      ) : (
         <Banner title="No video provider connected" tone="info">
-          Video tutorials need an authorised video service. None is connected in this build, so no videos are shown.
+          Video tutorials need the DIONER server. It is not connected in this build, so no videos are shown.
         </Banner>
       )}
     </Screen>

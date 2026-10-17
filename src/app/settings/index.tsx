@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ListRow, Screen, ScreenHeader } from '@/components/ui/layout';
 import { AppText, Card, Icon, SectionHeading, Segmented } from '@/components/ui/primitives';
+import { useCloud } from '@/features/auth/CloudProvider';
 import { useFocusedQuery } from '@/hooks/useAsync';
 import { useRepositories, useSettings } from '@/providers/data';
 import { colors, spacing } from '@/theme/tokens';
@@ -12,6 +13,14 @@ import { colors, spacing } from '@/theme/tokens';
 export default function SettingsScreen() {
   const { settings, update } = useSettings();
   const { songs, rehearsals } = useRepositories();
+  const cloud = useCloud();
+  const email = cloud.session?.user.email;
+  const cloudStatus =
+    cloud.env.status !== 'configured'
+      ? 'Optional backup — not set up in this build'
+      : email
+        ? `${email} · ${cloud.link?.kind === 'linked-same' ? 'syncing' : 'backup not on'}`
+        : 'Optional — sign in to back up';
   const stats = useFocusedQuery(
     useCallback(async () => ({ songs: await songs.count(), ...(await rehearsals.count()) }), [songs, rehearsals]),
   );
@@ -25,18 +34,13 @@ export default function SettingsScreen() {
           <Icon name="person-outline" />
         </View>
         <View style={{ flex: 1 }}>
-          <AppText variant="bodyStrong">Using DIONER as a guest</AppText>
+          <AppText variant="bodyStrong">{email ? `Signed in as ${email}` : 'Using DIONER as a guest'}</AppText>
           <AppText color={colors.textSecondary} variant="caption">
             Songs, recordings and progress stay on this device.
           </AppText>
         </View>
       </Card>
-      <ListRow
-        icon="cloud-outline"
-        onPress={() => router.push('/settings/account')}
-        subtitle="Optional account and backup — not connected"
-        title="Account & cloud sync"
-      />
+      <ListRow icon="cloud-outline" onPress={() => router.push('/settings/account')} subtitle={cloudStatus} title="Account & cloud sync" />
 
       <SectionHeading title="Audio & input" />
       <ListRow

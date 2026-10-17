@@ -1,6 +1,6 @@
 # DIONER Keyboardist
 
-An Android-first mobile app for keyboardists, singers and worship teams. Built with Expo SDK 58, React Native 0.88,
+An Android-first mobile app for keyboardists, singers and worship teams. Built with Expo SDK 57, React Native 0.86,
 TypeScript (strict) and Expo Router. It works fully offline in guest mode; no account is needed.
 
 ## Features
@@ -28,15 +28,26 @@ TypeScript (strict) and Expo Router. It works fully offline in guest mode; no ac
 
   Progress is saved locally.
 - **MIDI keyboard input (Android):** USB or virtual MIDI devices through a local Expo module on `android.media.midi`.
-  It shows the last note, velocity and held notes, and estimates the key of the keyboard part. It needs a development
-  or release build, not Expo Go. Bluetooth MIDI is not supported yet.
+  Bluetooth LE MIDI keyboards are also supported (scan and connect). It shows the last note, velocity and held notes,
+  and estimates the key of the keyboard part. It needs an installable build (EAS), not Expo Go.
 
 ## Not yet included (awaiting approval for external integrations)
 
-- **Cloud accounts and sync** (Supabase Auth, Postgres, Storage, RLS).
 - **Video tutorials.** This needs an authorised video provider; the app shows a "not connected" state.
 
 See [docs/FEATURE_STATUS.md](docs/FEATURE_STATUS.md) for per-feature status and evidence.
+
+## Video tutorials (Python backend)
+
+`backend/` is a FastAPI service that searches YouTube tutorials for the Learn tab. The YouTube API key stays on the
+server. Setup and deployment are in [backend/README.md](backend/README.md). The app uses it when `EXPO_PUBLIC_API_URL`
+is set.
+
+## Optional cloud backup
+
+Supabase accounts and sync: sign up or in, back up the library, sync between phones, and optionally back up
+recording audio to a private bucket. To enable it, follow [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md); without
+it the app stays in guest mode.
 
 ## Getting started
 
@@ -69,8 +80,8 @@ see [docs/ANDROID_BUILD.md](docs/ANDROID_BUILD.md).
 
 ## Environment
 
-The current build reads no environment variables. `.env.example` documents the placeholders a future Supabase setup
-would use.
+Copy `.env.example` to `.env` and fill in your Supabase project URL and publishable key to enable cloud features. See
+[docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
 
 ## Documentation
 
@@ -95,4 +106,3 @@ would use.
   on-device latency are unmeasured.
 - Analysis runs on the JavaScript thread (about 2 ms per 150 ms hop in Node); performance on low-end phones is
   unverified.
-- App icons are Expo template placeholders.

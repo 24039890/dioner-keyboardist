@@ -70,7 +70,12 @@ export default function LiveKeysScreen() {
             devices={midiLive.devices}
             onConnect={(id) => void midiLive.connect(id)}
             onDisconnect={midiLive.disconnect}
+            bluetoothDevices={midiLive.bluetoothDevices}
+            bluetoothSupported={midiLive.bluetoothSupported}
+            onConnectBluetooth={(address) => void midiLive.connectBluetooth(address)}
             onRefresh={midiLive.refresh}
+            onScanBluetooth={() => void midiLive.scanBluetooth()}
+            scanning={midiLive.scanning}
             snapshot={midiLive.snapshot}
             status={midiLive.status}
           />

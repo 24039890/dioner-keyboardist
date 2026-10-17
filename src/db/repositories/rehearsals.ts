@@ -45,6 +45,9 @@ export interface Recording {
   durationMs: number;
   sizeBytes: number | null;
   status: RecordingStatus;
+  /** Path in the cloud bucket when the audio has been backed up. */
+  remotePath: string | null;
+  syncStatus: SyncStatus;
   createdAt: string;
   updatedAt: string;
 }
@@ -73,6 +76,8 @@ interface RecordingRow {
   duration_ms: number;
   size_bytes: number | null;
   status: string;
+  remote_path: string | null;
+  sync_status: string;
   created_at: string;
   updated_at: string;
 }
@@ -101,6 +106,8 @@ const toRecording = (r: RecordingRow): Recording => ({
   durationMs: r.duration_ms,
   sizeBytes: r.size_bytes,
   status: r.status as RecordingStatus,
+  remotePath: r.remote_path ?? null,
+  syncStatus: (r.sync_status ?? 'local') as SyncStatus,
   createdAt: r.created_at,
   updatedAt: r.updated_at,
 });
@@ -204,11 +211,10 @@ export function createRehearsalsRepository(db: Db) {
 
   async function remove(id: string): Promise<void> {
     const now = nowIso();
-    const res = await db.runAsync('UPDATE rehearsals SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [
-      now,
-      now,
-      id,
-    ]);
+    const res = await db.runAsync(
+      `UPDATE rehearsals SET deleted_at = ?, updated_at = ?, sync_status = CASE sync_status WHEN 'synced' THEN 'pending' ELSE sync_status END WHERE id = ? AND deleted_at IS NULL`,
+      [now, now, id],
+    );
     if (res.changes === 0) throw new NotFoundError('Rehearsal', id);
   }
 
@@ -249,7 +255,7 @@ export function createRehearsalsRepository(db: Db) {
     data: { durationMs: number; sizeBytes: number | null; fileUri?: string },
   ): Promise<Recording> {
     const res = await db.runAsync(
-      `UPDATE recordings SET status = 'saved', duration_ms = ?, size_bytes = ?, file_uri = COALESCE(?, file_uri), updated_at = ? WHERE id = ?`,
+      `UPDATE recordings SET status = 'saved', duration_ms = ?, size_bytes = ?, file_uri = COALESCE(?, file_uri), updated_at = ?, sync_status = CASE sync_status WHEN 'synced' THEN 'pending' ELSE sync_status END WHERE id = ?`,
       [Math.max(0, Math.round(data.durationMs)), data.sizeBytes, data.fileUri ?? null, nowIso(), id],
     );
     if (res.changes === 0) throw new NotFoundError('Recording', id);
@@ -266,12 +272,23 @@ export function createRehearsalsRepository(db: Db) {
     const n = name.trim();
     if (!n) throw new ValidationError(['Recording name is required.']);
     if (n.length > 120) throw new ValidationError(['Recording name must be at most 120 characters.']);
-    const res = await db.runAsync('UPDATE recordings SET name = ?, updated_at = ? WHERE id = ?', [n, nowIso(), id]);
+    const res = await db.runAsync(
+      `UPDATE recordings SET name = ?, updated_at = ?, sync_status = CASE sync_status WHEN 'synced' THEN 'pending' ELSE sync_status END WHERE id = ?`,
+      [n, nowIso(), id],
+    );
     if (res.changes === 0) throw new NotFoundError('Recording', id);
   }
 
+  /** Deletes the row; if it was ever synced, leaves a tombstone so the cloud copy is deleted on next sync. */
   async function deleteRecordingRow(id: string): Promise<void> {
-    await db.runAsync('DELETE FROM recordings WHERE id = ?', [id]);
+    await db.withTransactionAsync(async () => {
+      await db.runAsync(
+        `INSERT OR REPLACE INTO tombstones (table_name, record_id, remote_path, deleted_at)
+         SELECT 'recordings', id, remote_path, ? FROM recordings WHERE id = ? AND (sync_status != 'local' OR remote_path IS NOT NULL)`,
+        [nowIso(), id],
+      );
+      await db.runAsync('DELETE FROM recordings WHERE id = ?', [id]);
+    });
   }
 
   async function pendingRecordings(): Promise<Recording[]> {

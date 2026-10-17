@@ -266,18 +266,20 @@ export function createSongsRepository(db: Db) {
   }
 
   async function setSaved(id: string, saved: boolean): Promise<void> {
-    const res = await db.runAsync('UPDATE songs SET is_saved = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [
-      saved ? 1 : 0,
-      nowIso(),
-      id,
-    ]);
+    const res = await db.runAsync(
+      `UPDATE songs SET is_saved = ?, updated_at = ?, sync_status = CASE sync_status WHEN 'synced' THEN 'pending' ELSE sync_status END WHERE id = ? AND deleted_at IS NULL`,
+      [saved ? 1 : 0, nowIso(), id],
+    );
     if (res.changes === 0) throw new NotFoundError('Song', id);
   }
 
   /** Soft delete: keeps a tombstone so deletion can propagate to cloud sync later. */
   async function remove(id: string): Promise<void> {
     const now = nowIso();
-    const res = await db.runAsync('UPDATE songs SET deleted_at = ?, updated_at = ? WHERE id = ? AND deleted_at IS NULL', [now, now, id]);
+    const res = await db.runAsync(
+      `UPDATE songs SET deleted_at = ?, updated_at = ?, sync_status = CASE sync_status WHEN 'synced' THEN 'pending' ELSE sync_status END WHERE id = ? AND deleted_at IS NULL`,
+      [now, now, id],
+    );
     if (res.changes === 0) throw new NotFoundError('Song', id);
   }
 

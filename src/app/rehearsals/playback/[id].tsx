@@ -7,11 +7,14 @@ import { TextField } from '@/components/ui/forms';
 import { Screen, ScreenHeader } from '@/components/ui/layout';
 import { AppText, Banner, Button, Card, EmptyState, Icon, IconButton, LoadingState } from '@/components/ui/primitives';
 import { ValidationError } from '@/db/types';
+import { useCloud } from '@/features/auth/CloudProvider';
 import { formatOffset, keyLabel } from '@/features/music-theory';
 import { expoRecordingStore } from '@/features/rehearsals/services/expoRecordingStore';
 import { deleteRecording, formatDuration, isRecordingAvailable } from '@/features/rehearsals/services/recordingService';
 import { useFocusedQuery } from '@/hooks/useAsync';
 import { useRepositories } from '@/providers/data';
+import { getSupabase } from '@/services/supabase/client';
+import { signedRecordingUrl } from '@/services/supabase/remoteStore';
 import { colors, radius, spacing } from '@/theme/tokens';
 
 export default function PlaybackScreen() {
@@ -26,8 +29,29 @@ export default function PlaybackScreen() {
   );
 
   const recording = result.data?.recording ?? null;
-  const available = recording ? isRecordingAvailable(expoRecordingStore, recording) : false;
-  const player = useAudioPlayer(available && recording ? { uri: recording.fileUri } : null, { updateInterval: 250 });
+  const localAvailable = recording ? isRecordingAvailable(expoRecordingStore, recording) : false;
+  const { session } = useCloud();
+  const remotePath = recording?.remotePath ?? null;
+  const [cloud, setCloud] = useState<{ path: string; url: string | null; error: string | null } | null>(null);
+  // Cloud-only recordings (synced from another phone) stream through a short-lived signed URL.
+  useEffect(() => {
+    const client = getSupabase();
+    if (localAvailable || !remotePath || !session || !client) return;
+    let active = true;
+    signedRecordingUrl(client, remotePath).then(
+      (url) => active && setCloud({ path: remotePath, url, error: null }),
+      (e: unknown) =>
+        active && setCloud({ path: remotePath, url: null, error: e instanceof Error ? e.message : 'Could not reach the cloud.' }),
+    );
+    return () => {
+      active = false;
+    };
+  }, [localAvailable, remotePath, session]);
+  const cloudUrl = cloud && cloud.path === remotePath ? cloud.url : null;
+  const cloudError = cloud && cloud.path === remotePath ? cloud.error : null;
+  const available = localAvailable || !!cloudUrl;
+  const source = localAvailable && recording ? { uri: recording.fileUri } : cloudUrl ? { uri: cloudUrl } : null;
+  const player = useAudioPlayer(source, { updateInterval: 250 });
   const status = useAudioPlayerStatus(player);
   const [trackWidth, setTrackWidth] = useState(1);
   const [renaming, setRenaming] = useState(false);
@@ -111,11 +135,21 @@ export default function PlaybackScreen() {
       {recording.status === 'recovered' ? (
         <Banner tone="warning">This take was recovered after an interruption. It may be incomplete or unplayable.</Banner>
       ) : null}
-      {!available ? (
+      {!available && remotePath ? (
+        <Banner title="Stored in your cloud backup" tone="info">
+          {cloudError
+            ? `The cloud copy could not be loaded: ${cloudError}`
+            : session
+              ? 'Loading the cloud copy…'
+              : 'This take was recorded on another phone. Sign in to your account to stream it.'}
+        </Banner>
+      ) : !available ? (
         <Banner title="Audio file missing" tone="error">
           The recording’s file is no longer on this device (it may have been removed by the system or another app). You can delete this
           entry.
         </Banner>
+      ) : cloudUrl ? (
+        <Banner tone="info">Streaming from your cloud backup.</Banner>
       ) : status.error ? (
         <Banner title="Playback failed" tone="error">
           {status.error}

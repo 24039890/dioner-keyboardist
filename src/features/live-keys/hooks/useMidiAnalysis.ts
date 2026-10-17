@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
 
-import { type MidiDevice, type MidiInputService, getMidiInput } from '../../../services/midi/midiInput';
+import { type BluetoothMidiDevice, type MidiDevice, type MidiInputService, getMidiInput } from '../../../services/midi/midiInput';
 import { MidiKeyAnalyzer, type MidiSnapshot } from '../engine/midiEvidence';
 
 export type MidiStatus = 'idle' | 'connecting' | 'listening' | 'error';
@@ -20,6 +20,8 @@ export function useMidiAnalysis(enabled: boolean, service: MidiInputService = ge
   const timer = useRef<ReturnType<typeof setInterval> | null>(null);
   const started = useRef(0);
   const deviceRef = useRef<MidiDevice | null>(null);
+  const [bluetoothDevices, setBluetoothDevices] = useState<BluetoothMidiDevice[]>([]);
+  const [scanning, setScanning] = useState(false);
 
   const stopTicking = useCallback(() => {
     if (timer.current) clearInterval(timer.current);
@@ -46,6 +48,11 @@ export function useMidiAnalysis(enabled: boolean, service: MidiInputService = ge
     const unsubscribe = service.subscribe({
       onNote: (e) => analyzer.current.handle(e),
       onDevicesChanged: setDevices,
+      onBluetoothFound: setBluetoothDevices,
+      onBluetoothScanStopped: (error) => {
+        setScanning(false);
+        if (error) setMessage(error);
+      },
       onDisconnected: (id) => {
         if (deviceRef.current?.id === id) disconnect('The MIDI keyboard was disconnected. Reconnect it and choose it again.');
       },
@@ -53,12 +60,12 @@ export function useMidiAnalysis(enabled: boolean, service: MidiInputService = ge
     return unsubscribe;
   }, [enabled, availability.available, service, disconnect]);
 
-  const connect = useCallback(
-    async (id: number) => {
+  const openWith = useCallback(
+    async (opener: () => Promise<MidiDevice>) => {
       setStatus('connecting');
       setMessage(null);
       try {
-        const opened = await service.open(id);
+        const opened = await opener();
         analyzer.current.reset();
         deviceRef.current = opened;
         setDevice(opened);
@@ -73,8 +80,29 @@ export function useMidiAnalysis(enabled: boolean, service: MidiInputService = ge
         setMessage(e instanceof Error ? e.message : 'The MIDI device could not be opened.');
       }
     },
-    [service, stopTicking],
+    [stopTicking],
   );
+
+  const connect = useCallback((id: number) => openWith(() => service.open(id)), [openWith, service]);
+  const connectBluetooth = useCallback(
+    (address: string) => {
+      setScanning(false);
+      return openWith(() => service.openBluetooth(address));
+    },
+    [openWith, service],
+  );
+
+  const scanBluetooth = useCallback(async () => {
+    setMessage(null);
+    setBluetoothDevices([]);
+    setScanning(true);
+    try {
+      await service.scanBluetooth();
+    } catch (e) {
+      setScanning(false);
+      setMessage(e instanceof Error ? e.message : 'Bluetooth scan could not start.');
+    }
+  }, [service]);
 
   const refresh = useCallback(() => {
     if (availability.available) setDevices(service.listDevices());
@@ -95,10 +123,26 @@ export function useMidiAnalysis(enabled: boolean, service: MidiInputService = ge
   useEffect(
     () => () => {
       stopTicking();
+      service.stopBluetoothScan();
       if (deviceRef.current) service.close();
     },
     [service, stopTicking],
   );
 
-  return { availability, devices, device, status, snapshot, message, connect, disconnect: () => disconnect(), refresh };
+  return {
+    availability,
+    devices,
+    device,
+    status,
+    snapshot,
+    message,
+    connect,
+    disconnect: () => disconnect(),
+    refresh,
+    bluetoothSupported: availability.available && service.bluetoothSupported(),
+    bluetoothDevices,
+    scanning,
+    scanBluetooth,
+    connectBluetooth,
+  };
 }

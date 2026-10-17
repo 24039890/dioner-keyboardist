@@ -91,6 +91,39 @@ CREATE TABLE IF NOT EXISTS lesson_progress (
 );
 `,
   },
+  {
+    version: 2,
+    description: 'Cloud sync bookkeeping: progress sync status, recording cloud path, deletion tombstones',
+    sql: `
+ALTER TABLE lesson_progress ADD COLUMN sync_status TEXT NOT NULL DEFAULT 'local';
+ALTER TABLE recordings ADD COLUMN remote_path TEXT;
+CREATE TABLE IF NOT EXISTS tombstones (
+  table_name TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  remote_path TEXT,
+  deleted_at TEXT NOT NULL,
+  PRIMARY KEY (table_name, record_id)
+);
+`,
+  },
+  {
+    version: 3,
+    description: 'Video tutorial history: opened and watched state',
+    sql: `
+CREATE TABLE IF NOT EXISTS video_progress (
+  video_id TEXT PRIMARY KEY NOT NULL,
+  title TEXT NOT NULL,
+  channel TEXT NOT NULL DEFAULT '',
+  watch_url TEXT NOT NULL,
+  thumbnail_url TEXT,
+  duration_seconds INTEGER,
+  opened_at TEXT NOT NULL,
+  watched INTEGER NOT NULL DEFAULT 0 CHECK (watched IN (0, 1)),
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_video_progress_opened ON video_progress (opened_at);
+`,
+  },
 ];
 
 export const LATEST_VERSION = MIGRATIONS[MIGRATIONS.length - 1]?.version ?? 0;

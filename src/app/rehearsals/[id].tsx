@@ -115,7 +115,7 @@ export default function RehearsalDetailScreen() {
               subtitle={[
                 formatDuration(rec.durationMs),
                 rec.status === 'recovered' ? 'Recovered after interruption — may be incomplete' : null,
-                available ? null : 'File missing',
+                available ? null : rec.remotePath ? 'In cloud backup' : 'File missing',
               ]
                 .filter(Boolean)
                 .join(' · ')}

@@ -7,7 +7,7 @@ import {
   useAudioRecorderState,
 } from 'expo-audio';
 import * as Linking from 'expo-linking';
-import { router, useLocalSearchParams, useNavigation, usePreventRemove } from 'expo-router';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { Alert, AppState, StyleSheet, View } from 'react-native';
 
@@ -41,12 +41,10 @@ export default function RecordScreen() {
     }, [rehearsals, rehearsalId]),
   );
 
-  // Stable file name per take, so the recording lands at <document>/Audio/<id>.m4a.
+  // Stable ID per take (used for the database row). Files go to app-private document storage;
+  // the exact file path is read from the recorder after prepareToRecordAsync().
   const [takeId] = useState(() => newId());
-  const options = useMemo(
-    () => ({ ...RecordingPresets.HIGH_QUALITY, directory: 'document' as const, fileName: takeId, isMeteringEnabled: true }),
-    [takeId],
-  );
+  const options = useMemo(() => ({ ...RecordingPresets.HIGH_QUALITY, directory: 'document' as const, isMeteringEnabled: true }), []);
   const recorder = useAudioRecorder(options);
   const recState = useAudioRecorderState(recorder, 250);
 
@@ -162,20 +160,29 @@ export default function RecordScreen() {
 
   // Confirm before leaving with an unsaved take.
   const unsaved = phase === 'recording' || phase === 'paused';
-  usePreventRemove(unsaved, ({ data }) => {
-    Alert.alert('Discard this take?', 'The recording has not been saved.', [
-      { text: 'Keep recording', style: 'cancel' },
-      {
-        text: 'Discard',
-        style: 'destructive',
-        onPress: async () => {
-          await discard();
-          setPhase('ready');
-          navigation.dispatch(data.action);
-        },
-      },
-    ]);
+  const discardRef = useRef(discard);
+  useEffect(() => {
+    discardRef.current = discard;
   });
+  useEffect(() => {
+    if (!unsaved) return;
+    return navigation.addListener('beforeRemove', (e) => {
+      e.preventDefault();
+      Alert.alert('Discard this take?', 'The recording has not been saved.', [
+        { text: 'Keep recording', style: 'cancel' },
+        {
+          text: 'Discard',
+          style: 'destructive',
+          onPress: async () => {
+            await discardRef.current();
+            phaseRef.current = 'ready';
+            setPhaseState('ready');
+            navigation.dispatch(e.data.action);
+          },
+        },
+      ]);
+    });
+  }, [navigation, unsaved]);
 
   const rehearsal = info.data?.rehearsal;
   const level = recState.metering !== undefined ? Math.min(1, Math.max(0, (recState.metering + 60) / 60)) : 0;

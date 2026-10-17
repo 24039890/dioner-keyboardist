@@ -1,0 +1,17 @@
+# Render Blueprint for the DIONER backend. Deploy only when you choose to.
+services:
+  - type: web
+    name: dioner-backend
+    runtime: docker
+    rootDir: backend
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: YOUTUBE_API_KEY
+        sync: false   # set the real key in the Render dashboard; never commit it
+      - key: TRUST_PROXY
+        value: "true"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "30"
+      - key: ALLOWED_ORIGINS
+        value: "http://localhost:8081"

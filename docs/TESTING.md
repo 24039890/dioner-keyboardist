@@ -1,6 +1,6 @@
 # Testing report
 
-Last full run: 2026-10-16 with `npx jest` on Node v24.18.1 (Windows 11). Result: **7 suites, 154 tests, 154
+Last full run: 2026-10-16 with `npx jest` on Node v24.18.1 (Windows 11). Result: **8 suites, 162 tests, 162
 passed, 0 failed, 0 skipped**, exit 0.
 
 ## Automated tests
@@ -10,6 +10,7 @@ passed, 0 failed, 0 skipped**, exit 0.
 | `tests/unit/music-theory.test.ts` | 56 | See below |
 | `tests/unit/audio-engine.test.ts` | 41 | See below |
 | `tests/integration/persistence.test.ts` | 26 | See below |
+| `tests/integration/sync.test.ts` | 8 | See below |
 | `tests/unit/learning.test.ts` | 9 | See below |
 | `tests/unit/components.test.tsx` | 7 | See below |
 | `tests/unit/midi.test.ts` | 13 | See below |
@@ -37,6 +38,10 @@ passed, 0 failed, 0 skipped**, exit 0.
   - Recording commit rules, a failed metadata write, interrupted-recording recovery, missing files, rename, discard,
     delete, cascade delete, insufficient storage.
   - Lesson progress and settings coercion.
+- **sync** (8): env validation (missing, placeholder, secret key, valid), plus a guest push with no duplicates on
+  re-sync, a second device pulling, edits flowing back, deletion propagation, last-write-wins conflicts, network
+  failure and retry, opt-in audio upload with cloud delete, progress sync, and account linking or re-queueing. Uses an
+  in-memory fake cloud on real SQLite.
 - **learning** (9): curriculum completeness, generator well-formedness over 280 seeds, answers cross-checked against
   the theory engine, single and multi answer validation, video provider "not configured".
 - **midi** (13): MIDI parser (note on/off, velocity-0, running status, split buffers, interleaved real-time bytes, SysEx,
@@ -90,6 +95,19 @@ results say nothing about accuracy on a real microphone.**
 
 The web preview uses the browser's SQLite (WASM), not Android.
 
+## Supabase SQL verification (PGlite)
+
+`supabase/migrations/20261016000000_initial_schema.sql` was applied to PGlite, Postgres compiled to WASM, with stubbed
+`auth.users`, `auth.uid()`, `storage.buckets/objects` and `storage.foldername`. `supabase/tests/rls_ownership.sql`
+then ran:
+
+- A sees 1 row; B sees 0.
+- B's update and delete affect 0 rows.
+- A spoofed-owner insert and a cross-user section insert are rejected.
+- A storage write into another user's folder is rejected by RLS.
+
+This was not a live Supabase project.
+
 ## Not verified
 
 - **Hardware tests completed: none.** There was no Android device, emulator or SDK on this machine.
@@ -100,4 +118,5 @@ The web preview uses the browser's SQLite (WASM), not Android.
 - AppState backgrounding, call interruptions and media-service resets on a device.
 - MIDI on hardware. The Kotlin module was not compiled (no Android SDK) and no keyboard was connected; the tests use a
   fake native module.
-- Supabase auth/RLS/Storage (not implemented), video provider (not connected).
+- Supabase on a live project: sign-up, sign-in, password reset, real uploads and downloads, signed-URL playback.
+- Video provider (not connected).

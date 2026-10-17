@@ -16,6 +16,10 @@ src/features/
 src/db/                  Db interface, migrations, repositories (no UI imports)
 src/providers/data.tsx   SQLiteProvider + repositories + settings context
 src/services/midi/       MIDI parser + input service
+src/services/supabase/   Supabase client, encrypted session storage, remote store
+src/features/sync/       Sync engine
+src/features/auth/       CloudProvider (session, sync orchestration)
+supabase/                SQL migrations + RLS test
 modules/dioner-midi/     Local Expo module (Kotlin, android.media.midi)
 src/theme/tokens.ts      Design tokens
 ```
@@ -63,7 +67,7 @@ Expo Router 58 with `src/app` as the routes root.
 
 ## Audio architecture
 
-1. **Capture.** The `useAudioStream` hook from expo-audio (SDK 58) delivers mono float32 PCM buffers to JS. 16 kHz is
+1. **Capture.** The `useAudioStream` hook from expo-audio (SDK 57) delivers mono float32 PCM buffers to JS. 16 kHz is
    requested, and the actual rate is honoured.
 2. **Preprocessing** (`preprocess.ts`). Convert to mono float, then resample to 16 kHz with a streaming box-filter low
    pass plus linear interpolation. Samples go into a ring buffer (4096 samples), and DC is removed per frame.
@@ -162,6 +166,58 @@ were experimental or abandoned. The app only needs input, which is about 200 lin
 
 ## Authentication and sync
 
-**Not implemented.** Supabase (Auth, Postgres, Storage) is an external integration that the owner asked to approve
-before it is added. Guest mode is the only mode and is complete on its own. The schema already carries UUIDs,
-`sync_status`, `updated_at` and soft-delete tombstones, so sync can be added without migrating local IDs.
+| Piece | File |
+| --- | --- |
+| Env validation | `src/config/env.ts` |
+| Client and encrypted session storage | `src/services/supabase/client.ts`, `sessionStorage.ts` |
+| Remote store (Supabase queries and Storage) | `src/services/supabase/remoteStore.ts` |
+| Local sync repository (dirty rows, last-write-wins apply, tombstones, cursors) | `src/db/repositories/sync.ts` |
+| Engine | `src/features/sync/syncEngine.ts` |
+| React provider (session, auto-sync, guest migration) | `src/features/auth/CloudProvider.tsx` |
+| UI | `src/app/settings/account.tsx` |
+| Server schema | `supabase/migrations/20261016000000_initial_schema.sql` |
+
+- **Local bookkeeping.** Each row has `sync_status` (`local` = never synced, `pending` = changed since the last sync,
+  `synced`). Local migration v2 adds `lesson_progress.sync_status`, `recordings.remote_path` and a `tombstones` table
+  (hard-deleted recordings). Songs and rehearsals use `deleted_at` soft deletes.
+- **Push** order is songs (then their sections are replaced), rehearsals, optional audio uploads, recordings,
+  progress, then tombstones. Each record is upserted by UUID, so retries never duplicate. Errors are collected per
+  record.
+- **Pull** fetches rows with `updated_at` greater than a per-table cursor. A remote row is applied when the local row
+  is synced or older (last-write-wins); a local unsynced newer edit is kept and pushed next time.
+- **Recordings** pulled from the cloud get metadata only and are streamed on demand.
+- **Account link.** `sync.accountId` records which account the library belongs to. Linking a different account
+  re-queues everything and drops the old account's audio paths.
+
+## Backend (Python, `backend/`)
+
+The FastAPI service has one job: video tutorial search. It proxies the YouTube Data API v3 so the API key stays
+server-side, forces safe search, caches results for 6 hours (quota) and rate-limits per client.
+
+The app calls it through `createBackendVideoProvider` (`src/features/learning/videoProviders.ts`). Every response is
+validated at runtime, and only `https://www.youtube.com/watch?v=` links are accepted.
+
+`video_progress` (local migration v3) records which tutorials were opened or marked watched. Videos open in the YouTube
+app or browser; DIONER does not embed, download or host them.
+
+Python was chosen over Java because its music and audio libraries suit future server-side analysis, and because it is
+lighter to run and maintain at this scope. Supabase remains the system of record for accounts and user data.
+
+## Bluetooth LE MIDI
+
+- **Native side** (`DionerMidiModule.kt`):
+  - `startBluetoothScan()` scans for about 15 s with a filter on the BLE-MIDI service UUID
+    `03B80E5A-EDE8-4B33-A751-6CE34EC4C700` and emits `onBluetoothDevicesFound`.
+  - `openBluetoothDevice(address)` calls `MidiManager.openBluetoothDevice`. It then uses the same port setup as USB
+    (`attachDevice`), so the parser and key analyzer are shared.
+- **Permissions** (`src/services/midi/bluetoothPermissions.ts`): `BLUETOOTH_SCAN` + `BLUETOOTH_CONNECT` on Android
+  12+; `ACCESS_FINE_LOCATION` on Android 11 and older. They are declared in the module manifest and requested before
+  every scan.
+
+## Branding and links
+
+- `scripts/generate-brand-assets.py` regenerates the icon, adaptive-icon layers, monochrome icon, splash and favicon.
+  The splash is configured through the `expo-splash-screen` plugin.
+- **Password reset:** the reset email redirects to `Linking.createURL('/reset-password')`. The `reset-password` route
+  parses the recovery tokens in the URL fragment (`src/features/auth/recoveryLink.ts`), calls `setSession`, then
+  `updateUser({ password })`.

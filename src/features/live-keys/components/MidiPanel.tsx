@@ -6,7 +6,7 @@ import { colors, radius, spacing } from '@/theme/tokens';
 
 import type { MidiSnapshot } from '../engine/midiEvidence';
 import type { MidiStatus } from '../hooks/useMidiAnalysis';
-import type { MidiDevice } from '../../../services/midi/midiInput';
+import type { BluetoothMidiDevice, MidiDevice } from '../../../services/midi/midiInput';
 
 const TRANSPORT: Record<MidiDevice['transport'], string> = {
   usb: 'USB',
@@ -24,7 +24,17 @@ export function MidiPanel({
   onConnect,
   onDisconnect,
   onRefresh,
+  bluetoothSupported = false,
+  bluetoothDevices = [],
+  scanning = false,
+  onScanBluetooth,
+  onConnectBluetooth,
 }: {
+  bluetoothSupported?: boolean;
+  bluetoothDevices?: BluetoothMidiDevice[];
+  scanning?: boolean;
+  onScanBluetooth?: () => void;
+  onConnectBluetooth?: (address: string) => void;
   devices: MidiDevice[];
   device: MidiDevice | null;
   status: MidiStatus;
@@ -40,7 +50,8 @@ export function MidiPanel({
           <View style={{ flex: 1 }}>
             <Eyebrow>MIDI keyboards</Eyebrow>
             <AppText color={colors.textSecondary} variant="caption">
-              Connect a keyboard with a USB-OTG cable, then choose it here.
+              Connect a keyboard with a USB-OTG cable{bluetoothSupported ? ' or scan for a Bluetooth MIDI keyboard' : ''}, then choose it
+              here.
             </AppText>
           </View>
           <IconButton icon="refresh" label="Refresh MIDI devices" onPress={onRefresh} />
@@ -58,6 +69,31 @@ export function MidiPanel({
             />
           ))
         )}
+        {bluetoothSupported ? (
+          <View style={{ gap: spacing.xs }}>
+            <Button
+              icon="bluetooth"
+              label={scanning ? 'Scanning for Bluetooth keyboards…' : 'Scan for Bluetooth MIDI keyboards'}
+              loading={scanning}
+              onPress={() => onScanBluetooth?.()}
+              variant="secondary"
+            />
+            {bluetoothDevices.map((b) => (
+              <ListRow
+                icon="bluetooth"
+                key={b.address}
+                onPress={status === 'connecting' ? undefined : () => onConnectBluetooth?.(b.address)}
+                subtitle="Bluetooth · tap to connect"
+                title={b.name}
+              />
+            ))}
+            {!scanning && bluetoothDevices.length === 0 ? (
+              <AppText color={colors.textSecondary} variant="caption">
+                Put the keyboard in Bluetooth MIDI pairing mode before scanning. Scans last about 15 seconds.
+              </AppText>
+            ) : null}
+          </View>
+        ) : null}
       </View>
     );
   }

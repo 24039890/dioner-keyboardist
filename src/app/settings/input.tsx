@@ -87,7 +87,8 @@ export default function InputSettingsScreen() {
           </Banner>
         )}
         <AppText color={colors.textSecondary} variant="caption">
-          Supported: USB MIDI keyboards (via a USB-OTG cable) and virtual MIDI apps on Android. Bluetooth MIDI is not supported yet.
+          Supported: USB MIDI keyboards (via a USB-OTG cable), Bluetooth LE MIDI keyboards (scan from Live Keys → MIDI keyboard) and virtual
+          MIDI apps on Android.
         </AppText>
       </Card>
     </Screen>

@@ -5,7 +5,8 @@
 - `D:\dioner` contains an unrelated product (Ndove Shisanyama ordering system). By the
   owner's decision this app lives in its own sibling repository, `D:\dioner-keyboardist`.
 - The project was scaffolded with `create-expo-app` (`blank-typescript` template).
-  - Expo SDK **58.0.12**, React Native **0.88.0**, React **19.3.0**, TypeScript **6.0**.
+  - Scaffolded on Expo SDK 58.0.12. **Moved to SDK 57.0.30** (React Native 0.86.3, React 19.2.3) on 2026-10-16,
+    because the Play Store's Expo Go only supported SDK 57. TypeScript 6.0.
   - Package manager: **npm** (`package-lock.json`).
 - The UI reference is a Vite/React web prototype (`App.tsx` + `index.css`) supplied by the
   owner. It was used as the **visual design reference only**. None of its demo data, fake
@@ -93,5 +94,9 @@ See `docs/FEATURE_STATUS.md` for per-feature status and evidence.
 - Phases A–E, G and H have been implemented, along with the engine side of F (MIDI evidence analyzer).
 - Phase J QA has been run; results are in `TESTING.md`.
 - Phase F (MIDI) was approved and implemented as a local Expo module on 2026-10-16 (unverified on hardware).
-- Phase I (Supabase) and the video provider are **blocked pending the owner's approval** of
+- Phase I (Supabase) was approved and implemented on 2026-10-16 (needs a live project to verify).
+- Earlier note: Phase I (Supabase) and the video provider are **blocked pending the owner's approval** of
   those external integrations.
+
+- 2026-10-16: downgraded to Expo SDK 57 for Expo Go compatibility. Code changes: the recorder no longer uses the SDK
+  58-only `fileName` option, and the unsaved-take guard uses the `beforeRemove` listener instead of `usePreventRemove`.

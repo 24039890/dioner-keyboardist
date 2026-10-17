@@ -1,4 +1,13 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <!-- MIDI is optional: the app still installs on devices without android.software.midi. -->
   <uses-feature android:name="android.software.midi" android:required="false" />
+  <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
+
+  <!-- Bluetooth MIDI. Android 12+: scan/connect permissions (scan is not used for location). -->
+  <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+  <!-- Android 11 and older: legacy Bluetooth permissions; BLE scanning there requires location. -->
+  <uses-permission android:name="android.permission.BLUETOOTH" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" android:maxSdkVersion="30" />
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" android:maxSdkVersion="30" />
 </manifest>

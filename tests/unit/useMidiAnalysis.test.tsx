@@ -8,7 +8,15 @@ jest.mock('../../modules/dioner-midi', () => ({ DionerMidi: null }));
 
 function fakeService() {
   let handlers: Parameters<MidiInputService['subscribe']>[0] | null = null;
-  const svc: MidiInputService & { note: (e: MidiNoteEvent) => void; unplug: (id: number) => void; closed: number } = {
+  const svc: MidiInputService & {
+    note: (e: MidiNoteEvent) => void;
+    unplug: (id: number) => void;
+    found: (d: { address: string; name: string; rssi: number }[]) => void;
+    scanStopped: (error: string | null) => void;
+    closed: number;
+    scanError: Error | null;
+  } = {
+    scanError: null,
     closed: 0,
     availability: () => ({ available: true }),
     listDevices: () => [{ id: 3, name: 'Stage Piano', transport: 'usb' }],
@@ -16,6 +24,12 @@ function fakeService() {
     close: () => {
       svc.closed++;
     },
+    bluetoothSupported: () => true,
+    scanBluetooth: async () => {
+      if (svc.scanError) throw svc.scanError;
+    },
+    stopBluetoothScan: () => undefined,
+    openBluetooth: async (address) => ({ id: 9, name: `BLE ${address}`, transport: 'bluetooth' }),
     subscribe: (h) => {
       handlers = h;
       return () => {
@@ -24,6 +38,8 @@ function fakeService() {
     },
     note: (e) => handlers?.onNote(e),
     unplug: (id) => handlers?.onDisconnected?.(id),
+    found: (d) => handlers?.onBluetoothFound?.(d),
+    scanStopped: (error) => handlers?.onBluetoothScanStopped?.(error),
   };
   return svc;
 }
@@ -69,4 +85,44 @@ test('leaving MIDI mode releases the device', async () => {
   await rerender({ on: false });
   expect(result.current.status).toBe('idle');
   expect(svc.closed).toBeGreaterThan(0);
+});
+
+test('Bluetooth: scan, list found keyboards, connect', async () => {
+  const svc = fakeService();
+  const { result } = await renderHook(() => useMidiAnalysis(true, svc));
+  expect(result.current.bluetoothSupported).toBe(true);
+  await act(async () => {
+    await result.current.scanBluetooth();
+  });
+  expect(result.current.scanning).toBe(true);
+  await act(async () => {
+    svc.found([{ address: 'AA:BB', name: 'Piano BLE', rssi: -50 }]);
+  });
+  expect(result.current.bluetoothDevices.map((d) => d.name)).toEqual(['Piano BLE']);
+  await act(async () => {
+    await result.current.connectBluetooth('AA:BB');
+  });
+  expect(result.current.status).toBe('listening');
+  expect(result.current.device).toEqual({ id: 9, name: 'BLE AA:BB', transport: 'bluetooth' });
+  expect(result.current.scanning).toBe(false);
+});
+
+test('Bluetooth: permission denial and scan failure are reported', async () => {
+  const svc = fakeService();
+  svc.scanError = new Error('Bluetooth permission is needed');
+  const { result } = await renderHook(() => useMidiAnalysis(true, svc));
+  await act(async () => {
+    await result.current.scanBluetooth();
+  });
+  expect(result.current.scanning).toBe(false);
+  expect(result.current.message).toMatch(/permission/);
+  svc.scanError = null;
+  await act(async () => {
+    await result.current.scanBluetooth();
+  });
+  await act(async () => {
+    svc.scanStopped('Bluetooth scan failed (code 2).');
+  });
+  expect(result.current.scanning).toBe(false);
+  expect(result.current.message).toMatch(/scan failed/);
 });

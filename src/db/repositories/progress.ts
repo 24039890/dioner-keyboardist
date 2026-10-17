@@ -61,7 +61,8 @@ export function createProgressRepository(db: Db) {
          last_score = excluded.last_score,
          question_count = excluded.question_count,
          completed_at = COALESCE(completed_at, excluded.completed_at),
-         updated_at = excluded.updated_at`,
+         updated_at = excluded.updated_at,
+         sync_status = CASE sync_status WHEN 'synced' THEN 'pending' ELSE sync_status END`,
       [lessonId, score, score, questionCount, passed ? now : null, now],
     );
     const p = await get(lessonId);
