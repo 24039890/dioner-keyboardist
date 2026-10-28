@@ -1,21 +1,24 @@
 import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 
 import { KeyPickerSheet } from '@/components/music/KeyPickerSheet';
 import { Screen, ScreenHeader } from '@/components/ui/layout';
 import { AppText, Banner, Button, IconButton, Segmented } from '@/components/ui/primitives';
+import { SLOGAN } from '@/config/brand';
 import { KeyPanel } from '@/features/live-keys/components/KeyPanel';
 import { MidiPanel } from '@/features/live-keys/components/MidiPanel';
 import { PitchPanel } from '@/features/live-keys/components/PitchPanel';
+import { TransposeCard } from '@/features/live-keys/components/TransposeCard';
 import { useLiveAnalysis } from '@/features/live-keys/hooks/useLiveAnalysis';
 import { useMidiAnalysis } from '@/features/live-keys/hooks/useMidiAnalysis';
-import type { Key } from '@/features/music-theory';
+import { type Key, decodeKey, encodeKey } from '@/features/music-theory';
 import { useSettings } from '@/providers/data';
 import { colors, spacing } from '@/theme/tokens';
 
 const SOURCES = ['microphone', 'midi'] as const;
+type Picker = 'song' | 'mine' | null;
 
 export default function LiveKeysScreen() {
   const { settings, update } = useSettings();
@@ -24,7 +27,8 @@ export default function LiveKeysScreen() {
   const midiLive = useMidiAnalysis(source === 'midi');
   const midi = midiLive.availability;
   const [manualKey, setManualKey] = useState<Key | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [picker, setPicker] = useState<Picker>(null);
+  const playKey = decodeKey(settings.playKey);
 
   const changeSource = (next: (typeof SOURCES)[number]) => {
     if (next === source) return;
@@ -33,46 +37,45 @@ export default function LiveKeysScreen() {
   };
 
   const reading = source === 'midi' ? (midiLive.snapshot?.key ?? null) : (live.snapshot?.key ?? null);
-  const active = live.status === 'listening' || live.status === 'paused';
+  const status = source === 'midi' ? (midiLive.status === 'listening' ? 'listening' : 'idle') : live.status;
+  const songKey = manualKey ?? (reading?.status === 'estimated' ? reading.key : null);
+  const listening = live.status === 'listening';
+  const paused = live.status === 'paused';
+
+  const start = () => {
+    setManualKey(null);
+    void live.start();
+  };
 
   return (
     <Screen withTabBar>
       <ScreenHeader
         action={<IconButton icon="settings-outline" label="Open settings" onPress={() => router.push('/settings')} />}
-        subtitle="Live musical analysis"
+        subtitle={SLOGAN}
         title="DIONER"
       />
 
       <Segmented items={SOURCES} labels={{ microphone: 'Microphone', midi: 'MIDI keyboard' }} onChange={changeSource} value={source} />
-      <AppText color={colors.textSecondary} style={styles.helper} variant="small">
-        {source === 'microphone'
-          ? 'Listens to a singer or a full performance through this phone. Audio is analysed on the device and never uploaded.'
-          : 'Reads the notes you play on a MIDI keyboard. This describes your keyboard part, not the singer’s melody.'}
-      </AppText>
+      <View style={{ height: spacing.md }} />
 
       {source === 'midi' && !midi.available ? (
-        <View style={{ gap: spacing.sm }}>
-          <Banner title="MIDI input is not available in this build" tone="warning">
-            {midi.reason}
-          </Banner>
-          <Button
-            icon="information-circle-outline"
-            label="Input details"
-            onPress={() => router.push('/settings/input')}
-            variant="secondary"
-          />
-        </View>
-      ) : source === 'midi' ? (
+        <Banner title="MIDI needs the installed DIONER app" tone="info">
+          {midi.reason}
+        </Banner>
+      ) : (
+        <KeyPanel manualKey={manualKey} onHoldKey={setManualKey} onPickKey={setManualKey} reading={reading} status={status} />
+      )}
+
+      {source === 'midi' && midi.available ? (
         <>
-          <KeyPanel manualKey={manualKey} reading={reading} status={midiLive.status === 'listening' ? 'listening' : 'idle'} />
           <MidiPanel
+            bluetoothDevices={midiLive.bluetoothDevices}
+            bluetoothSupported={midiLive.bluetoothSupported}
             device={midiLive.device}
             devices={midiLive.devices}
             onConnect={(id) => void midiLive.connect(id)}
-            onDisconnect={midiLive.disconnect}
-            bluetoothDevices={midiLive.bluetoothDevices}
-            bluetoothSupported={midiLive.bluetoothSupported}
             onConnectBluetooth={(address) => void midiLive.connectBluetooth(address)}
+            onDisconnect={midiLive.disconnect}
             onRefresh={midiLive.refresh}
             onScanBluetooth={() => void midiLive.scanBluetooth()}
             scanning={midiLive.scanning}
@@ -85,17 +88,18 @@ export default function LiveKeysScreen() {
             </View>
           ) : null}
         </>
-      ) : (
+      ) : null}
+
+      {source === 'microphone' ? (
         <>
-          <KeyPanel manualKey={manualKey} reading={reading} status={live.status} />
-          <PitchPanel snapshot={live.snapshot} source="Microphone" status={live.status} />
+          {listening ? <PitchPanel snapshot={live.snapshot} /> : null}
 
           {live.status === 'denied' ? (
             <View style={styles.block}>
               <Banner title="Microphone access is off" tone="warning">
                 {live.permissionBlocked
-                  ? 'DIONER can’t ask again. Turn on microphone access for DIONER in your phone’s settings, then come back.'
-                  : 'Live Keys needs the microphone to hear the music. Nothing is recorded or uploaded.'}
+                  ? 'Allow the microphone for DIONER in your phone settings.'
+                  : 'DIONER needs the microphone to hear the music.'}
               </Banner>
               {live.permissionBlocked ? (
                 <Button
@@ -114,59 +118,67 @@ export default function LiveKeysScreen() {
           ) : null}
 
           <View style={styles.controls}>
-            {!active ? (
-              <Button
-                icon="mic"
-                label={live.status === 'denied' ? 'Try again' : 'Start listening'}
-                loading={live.status === 'starting'}
-                onPress={() => void live.start()}
-                style={styles.grow}
-              />
-            ) : live.status === 'listening' ? (
+            {listening || paused ? (
               <>
-                <Button icon="pause" label="Pause" onPress={live.pause} style={styles.grow} />
-                <Button icon="stop" label="Stop" onPress={live.stop} variant="secondary" />
+                <IconButton
+                  icon={listening ? 'pause' : 'play'}
+                  label={listening ? 'Pause listening' : 'Resume listening'}
+                  onPress={() => (listening ? live.pause() : void live.resume())}
+                  size={56}
+                />
+                <Button icon="stop" label="Stop" onPress={live.stop} style={styles.grow} />
               </>
             ) : (
-              <>
-                <Button icon="play" label="Resume" onPress={() => void live.resume()} style={styles.grow} />
-                <Button icon="stop" label="Stop" onPress={live.stop} variant="secondary" />
-              </>
+              <Button
+                icon="mic"
+                label={live.snapshot ? 'Listen again' : 'Start listening'}
+                loading={live.status === 'starting'}
+                onPress={start}
+                style={styles.grow}
+              />
             )}
           </View>
         </>
-      )}
+      ) : null}
 
-      <View style={styles.manualRow}>
-        <Button
-          icon="key-outline"
-          label={manualKey ? 'Change manual key' : 'Set key manually'}
-          onPress={() => setPickerOpen(true)}
-          style={styles.grow}
-          variant="ghost"
-        />
-        {manualKey ? <Button label="Clear" onPress={() => setManualKey(null)} variant="secondary" /> : null}
+      <View style={styles.links}>
+        <Pressable accessibilityRole="button" hitSlop={8} onPress={() => setPicker('song')} style={styles.link}>
+          <AppText color={colors.primary} variant="bodyStrong">
+            {manualKey ? 'Change song key' : 'Set song key myself'}
+          </AppText>
+        </Pressable>
+        {manualKey ? (
+          <Pressable accessibilityRole="button" hitSlop={8} onPress={() => setManualKey(null)} style={styles.link}>
+            <AppText color={colors.textSecondary} variant="bodyStrong">
+              Release
+            </AppText>
+          </Pressable>
+        ) : null}
       </View>
 
+      <TransposeCard onChangePlayKey={() => setPicker('mine')} playKey={playKey} songKey={songKey} />
+
       <KeyPickerSheet
-        initial={manualKey ?? (reading?.status === 'estimated' ? reading.key : null)}
-        onClose={() => setPickerOpen(false)}
+        confirmPrefix={picker === 'mine' ? 'I play in' : 'Use'}
+        initial={picker === 'mine' ? playKey : (manualKey ?? songKey)}
+        onClose={() => setPicker(null)}
         onSelect={(k) => {
-          setManualKey(k);
-          setPickerOpen(false);
+          if (picker === 'mine') update('playKey', encodeKey(k)).catch(() => undefined);
+          else setManualKey(k);
+          setPicker(null);
         }}
-        subtitle="Overrides the live estimate until you clear it."
-        title="Set key manually"
-        visible={pickerOpen}
+        subtitle={picker === 'mine' ? 'The key you are most comfortable playing in.' : undefined}
+        title={picker === 'mine' ? 'My keyboard key' : 'Song key'}
+        visible={picker !== null}
       />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  helper: { marginTop: spacing.xs, marginBottom: spacing.md },
   block: { marginTop: spacing.sm, gap: spacing.xs },
-  controls: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.md },
+  controls: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md },
   grow: { flex: 1 },
-  manualRow: { flexDirection: 'row', gap: spacing.xs, marginTop: spacing.xs },
+  links: { flexDirection: 'row', justifyContent: 'center', gap: spacing.lg, marginTop: spacing.xs },
+  link: { minHeight: 44, justifyContent: 'center' },
 });

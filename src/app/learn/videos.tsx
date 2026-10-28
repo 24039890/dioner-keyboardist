@@ -1,4 +1,4 @@
-import * as Linking from 'expo-linking';
+import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
@@ -87,8 +87,7 @@ export default function VideoTutorialsScreen() {
     await videos.markOpened(v);
     setStatus(await videos.statusFor(results.map((x) => x.id)));
     await refreshHistory();
-    // Opens the YouTube app when installed, otherwise the browser.
-    Linking.openURL(v.watchUrl).catch(() => setFailure({ ok: false, reason: 'provider-error', message: 'The video could not be opened.' }));
+    router.push({ pathname: '/learn/watch/[id]', params: { id: v.id, title: v.title, channel: v.channel } });
   };
 
   const toggleWatched = async (id: string, watched: boolean) => {
@@ -179,7 +178,7 @@ export default function VideoTutorialsScreen() {
               accessibilityLabel={`${h.title}${h.watched ? ', watched' : ''}`}
               accessibilityRole="button"
               key={h.videoId}
-              onPress={() => Linking.openURL(h.watchUrl).catch(() => undefined)}
+              onPress={() => router.push({ pathname: '/learn/watch/[id]', params: { id: h.videoId, title: h.title, channel: h.channel } })}
               style={styles.historyRow}
             >
               <Icon name={h.watched ? 'checkmark-circle' : 'time-outline'} size={18} />
@@ -192,7 +191,7 @@ export default function VideoTutorialsScreen() {
       ) : null}
 
       <AppText color={colors.textSecondary} style={{ marginTop: spacing.lg }} variant="caption">
-        Videos are from YouTube and open in the YouTube app or your browser. DIONER does not download or host them.
+        Videos are from YouTube and play in YouTube’s own player inside DIONER. DIONER does not download or host them.
       </AppText>
     </Screen>
   );

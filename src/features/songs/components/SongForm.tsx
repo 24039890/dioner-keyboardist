@@ -35,6 +35,8 @@ export function SongForm({
   onSubmit: (input: SongInput) => Promise<void>;
 }) {
   const [title, setTitle] = useState(initial?.title ?? '');
+  // Extras stay folded unless the song already has some.
+  const [showMore, setShowMore] = useState(!!(initial?.notes || initial?.lyrics || initial?.sourceAttribution || initial?.tags?.length));
   const [artist, setArtist] = useState(initial?.artist ?? '');
   const [songNumber, setSongNumber] = useState(initial?.songNumber ?? '');
   const [key, setKey] = useState<Key>(initial?.originalKey ?? { tonic: 0, mode: 'major' });
@@ -169,39 +171,44 @@ export function SongForm({
       />
 
       <Card style={{ marginTop: spacing.md }} tinted>
-        <AppText variant="subheading">Add from numbers</AppText>
-        <AppText color={colors.textSecondary} style={{ marginBottom: spacing.xs }} variant="small">
-          Type scale degrees in {keyLabel(key)} (1 = tonic). Example: 1-5-6-4. Use 4m, 57, ♭7 or 1/3 for other qualities and bass notes.
-        </AppText>
         <TextField
           autoCapitalize="none"
           error={numberError}
-          label="Numbers"
+          hint={`Numbers in ${keyLabel(key)}, e.g. 1-5-6-4`}
+          label="Or type numbers"
           onChangeText={setNumbers}
           placeholder="1-5-6-4"
           value={numbers}
         />
-        <Button disabled={!numbers.trim()} label="Convert and add section" onPress={insertNumbers} variant="secondary" />
+        <Button disabled={!numbers.trim()} label="Add as chords" onPress={insertNumbers} variant="secondary" />
       </Card>
 
-      <SectionHeading title="Details" />
-      <TextField hint="Comma separated, e.g. worship, opener" label="Tags" onChangeText={setTags} value={tags} />
-      <TextField label="Musician notes" maxLength={5000} multiline onChangeText={setNotes} value={notes} />
-      <TextField
-        hint="Only add lyrics you wrote or have permission to use."
-        label="Lyrics (optional)"
-        maxLength={20000}
-        multiline
-        onChangeText={setLyrics}
-        value={lyrics}
-      />
-      <TextField
-        hint="Where the chart or lyrics came from, e.g. “Arranged by me” or a licensed songbook."
-        label="Source attribution"
-        maxLength={500}
-        onChangeText={setSource}
-        value={source}
-      />
+      <Pressable accessibilityRole="button" onPress={() => setShowMore((v) => !v)} style={styles.moreToggle}>
+        <AppText color={colors.primary} variant="bodyStrong">
+          {showMore ? 'Fewer details' : 'More details (notes, lyrics, tags, source)'}
+        </AppText>
+      </Pressable>
+      {showMore ? (
+        <>
+          <TextField hint="Comma separated, e.g. worship, opener" label="Tags" onChangeText={setTags} value={tags} />
+          <TextField label="Musician notes" maxLength={5000} multiline onChangeText={setNotes} value={notes} />
+          <TextField
+            hint="Only add lyrics you wrote or have permission to use."
+            label="Lyrics (optional)"
+            maxLength={20000}
+            multiline
+            onChangeText={setLyrics}
+            value={lyrics}
+          />
+          <TextField
+            hint="Where the chart or lyrics came from, e.g. “Arranged by me” or a licensed songbook."
+            label="Source attribution"
+            maxLength={500}
+            onChangeText={setSource}
+            value={source}
+          />
+        </>
+      ) : null}
 
       <Button icon="checkmark" label={submitLabel} loading={saving} onPress={submit} style={{ marginTop: spacing.sm }} />
 
@@ -221,6 +228,7 @@ export function SongForm({
 }
 
 const styles = StyleSheet.create({
+  moreToggle: { minHeight: 48, justifyContent: 'center', marginTop: spacing.sm },
   keyButton: {
     minHeight: 50,
     borderWidth: 1,

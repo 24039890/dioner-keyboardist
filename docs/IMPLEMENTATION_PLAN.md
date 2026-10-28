@@ -6,7 +6,8 @@
   owner's decision this app lives in its own sibling repository, `D:\dioner-keyboardist`.
 - The project was scaffolded with `create-expo-app` (`blank-typescript` template).
   - Scaffolded on Expo SDK 58.0.12. **Moved to SDK 57.0.30** (React Native 0.86.3, React 19.2.3) on 2026-10-16,
-    because the Play Store's Expo Go only supported SDK 57. TypeScript 6.0.
+    because the Play Store's Expo Go only supported SDK 57. **Back on SDK 58.0.20** (React Native 0.88.0, React 19.3.0)
+    since 2026-10-28. TypeScript 6.0.
   - Package manager: **npm** (`package-lock.json`).
 - The UI reference is a Vite/React web prototype (`App.tsx` + `index.css`) supplied by the
   owner. It was used as the **visual design reference only**. None of its demo data, fake
@@ -40,7 +41,7 @@
 | Recording / playback | `expo-audio` `useAudioRecorder` / `useAudioPlayer` | First-party, replaces deprecated `expo-av` |
 | Files | `expo-file-system` (`File`/`Directory`/`Paths`) | First-party |
 | IDs | `expo-crypto` `randomUUID` | First-party; UUIDs are stable for later Supabase sync |
-| Tests | `jest-expo` + Jest 29 | Expo-recommended |
+| Tests | `jest-expo` + Jest 30 | Expo-recommended |
 
 The following **external integrations are deliberately NOT added yet**. The owner asked to be
 consulted before any of them is integrated:
@@ -100,3 +101,6 @@ See `docs/FEATURE_STATUS.md` for per-feature status and evidence.
 
 - 2026-10-16: downgraded to Expo SDK 57 for Expo Go compatibility. Code changes: the recorder no longer uses the SDK
   58-only `fileName` option, and the unsaved-take guard uses the `beforeRemove` listener instead of `usePreventRemove`.
+- 2026-10-28: upgraded back to Expo SDK 58.0.20 (React Native 0.88.0, React 19.3.0, Jest 30). The unsaved-take guard
+  is back on `usePreventRemove` (the `beforeRemove` listener is not in the SDK 58 navigation typings). Jest now stubs
+  `expo-font` in `tests/setup.ts`, because icon fonts cannot be resolved from the asset registry under Jest.

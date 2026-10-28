@@ -42,3 +42,8 @@ yarn-error.*
 
 # secrets
 .env
+
+# Gradle caches (generated)
+.gradle/
+**/.gradle/
+modules/*/android/build/

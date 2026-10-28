@@ -2,8 +2,6 @@
  * Initial curriculum: six complete lessons (three per path). The text is
  * original to DIONER; no third-party lesson material is reproduced.
  */
-import type { ExerciseKind } from './exercises';
-
 export type LearningPath = 'beginner' | 'experienced';
 export type Difficulty = 'Foundation' | 'Intermediate' | 'Advanced';
 
@@ -24,7 +22,6 @@ export interface Lesson {
   category: string;
   minutes: number;
   content: ContentBlock[];
-  exercise: { kinds: ExerciseKind[]; count: number };
   attribution?: string;
 }
 
@@ -55,7 +52,6 @@ export const LESSONS: readonly Lesson[] = [
       },
       { type: 'tip', text: 'Close your eyes, feel for a group of two black keys, and play the white key on its left: that is always C.' },
     ],
-    exercise: { kinds: ['note-recognition'], count: 6 },
   },
   {
     id: 'b2-major-scales',
@@ -86,7 +82,6 @@ export const LESSONS: readonly Lesson[] = [
         text: 'Every major key has a relative minor that uses the same notes, starting on its 6th degree: C major ↔ A minor.',
       },
     ],
-    exercise: { kinds: ['scale-construction'], count: 5 },
   },
   {
     id: 'b3-triads',
@@ -111,7 +106,6 @@ export const LESSONS: readonly Lesson[] = [
       { type: 'keyboard', caption: 'C major (C E G) — try lowering E to E♭ to hear C minor.', highlight: [0, 4, 7] },
       { type: 'tip', text: 'Use fingers 1, 3 and 5 in the right hand for root-position triads.' },
     ],
-    exercise: { kinds: ['chord-identification', 'chord-construction'], count: 6 },
   },
   {
     id: 'e1-number-system',
@@ -138,7 +132,6 @@ export const LESSONS: readonly Lesson[] = [
       },
       { type: 'tip', text: 'Say the numbers aloud as you play a progression, then switch keys without changing what you say.' },
     ],
-    exercise: { kinds: ['number-to-chord'], count: 6 },
   },
   {
     id: 'e2-transposition',
@@ -168,7 +161,6 @@ export const LESSONS: readonly Lesson[] = [
         text: 'For large moves, transpose the numbers instead: find the progression in numbers once, then read it in the new key.',
       },
     ],
-    exercise: { kinds: ['transposition'], count: 5 },
   },
   {
     id: 'e3-progressions',
@@ -195,7 +187,6 @@ export const LESSONS: readonly Lesson[] = [
       },
       { type: 'tip', text: 'This lesson trains recognition on the page. Practise with recordings afterwards to train your ear.' },
     ],
-    exercise: { kinds: ['progression-recognition'], count: 5 },
   },
 ];
 

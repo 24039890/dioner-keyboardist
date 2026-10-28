@@ -1,15 +1,19 @@
+import { decodeKey } from '../../features/music-theory/keys';
 import type { Db } from '../types';
 
 export interface AppSettings {
   onboardingComplete: boolean;
   learningPath: 'beginner' | 'experienced';
   inputMode: 'microphone' | 'midi';
+  /** The key the keyboardist plays in, encoded "tonic:mode"; '' when not set. */
+  playKey: string;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   onboardingComplete: false,
   learningPath: 'beginner',
   inputMode: 'microphone',
+  playKey: '',
 };
 
 /** Validates a stored value against the allowed set; falls back to the default. */
@@ -23,6 +27,8 @@ function coerce<K extends keyof AppSettings>(key: K, raw: string | undefined): A
       return (raw === 'beginner' || raw === 'experienced' ? raw : d) as AppSettings[K];
     case 'inputMode':
       return (raw === 'microphone' || raw === 'midi' ? raw : d) as AppSettings[K];
+    case 'playKey':
+      return (decodeKey(raw) ? raw : d) as AppSettings[K];
     default:
       return d;
   }
@@ -36,6 +42,7 @@ export function createSettingsRepository(db: Db) {
       onboardingComplete: coerce('onboardingComplete', map.get('onboardingComplete')),
       learningPath: coerce('learningPath', map.get('learningPath')),
       inputMode: coerce('inputMode', map.get('inputMode')),
+      playKey: coerce('playKey', map.get('playKey')),
     };
   }
 

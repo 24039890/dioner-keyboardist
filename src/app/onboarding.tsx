@@ -4,6 +4,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Screen } from '@/components/ui/layout';
 import { AppText, Banner, Button, Card, Icon, type IconName } from '@/components/ui/primitives';
+import { SLOGAN } from '@/config/brand';
 import { useSettings } from '@/providers/data';
 import { colors, spacing } from '@/theme/tokens';
 
@@ -17,25 +18,15 @@ interface Step {
 const STEPS: Step[] = [
   {
     icon: 'musical-notes',
-    title: 'Welcome to DIONER Keyboardist',
-    body: 'Find the key, transpose charts, record rehearsals and keep learning — on your phone, offline.',
-    points: ['Live key estimation', 'Songbook and transposition', 'Rehearsal recordings', 'Keyboard lessons and exercises'],
+    title: 'DIONER Keyboardist',
+    body: `${SLOGAN} Like an eagle hearing from above, DIONER finds the key so you can play along in yours.`,
+    points: ['Find the song key live', 'Play it in your own key', 'Record rehearsals', 'Learn as you go'],
   },
   {
     icon: 'mic',
-    title: 'Listening for the key',
-    body: 'Live Keys listens through your microphone and estimates the overall key from several seconds of music. A single note is never treated as the key.',
-    points: [
-      'Audio is analysed on this phone and never uploaded.',
-      'You will be asked for microphone access only when you first start listening.',
-      'You can always set the key manually.',
-    ],
-  },
-  {
-    icon: 'options',
-    title: 'Microphone vs. MIDI keyboard',
-    body: 'The microphone hears the singer and the band. A MIDI keyboard reports the notes you play — that describes your playing, not the singer’s melody.',
-    points: ['Microphone: singer or full performance', 'MIDI: your keyboard part only', 'MIDI support depends on your build and device'],
+    title: 'It listens, you play',
+    body: 'Tap Start and let DIONER hear a few seconds of music. Tell it the key you play in and it shows exactly how far to transpose.',
+    points: ['Audio stays on your phone', 'Microphone access is asked only when you start', 'You can always set a key yourself'],
   },
 ];
 

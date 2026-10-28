@@ -48,7 +48,12 @@ def make_client():
 
 def test_health_reports_configuration(make_client):
     with make_client() as c:
-        assert c.get("/health").json() == {"status": "ok", "version": "0.1.0", "youtube": "configured"}
+        assert c.get("/health").json() == {
+            "status": "ok",
+            "version": "0.1.0",
+            "youtube": "configured",
+            "songKeys": "not-configured",
+        }
     with make_client(youtube_api_key="") as c:
         assert c.get("/health").json()["youtube"] == "not-configured"
 

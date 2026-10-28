@@ -28,6 +28,29 @@ class SearchResponse(ApiModel):
     cached: bool = False
 
 
+class SongKey(ApiModel):
+    tonic: int = Field(ge=0, le=11, description="Pitch class of the tonic, 0 = C.")
+    mode: Literal["major", "minor"]
+
+
+class SongKeyResult(ApiModel):
+    id: str
+    title: str
+    artist: str
+    album: str | None = None
+    year: int | None = None
+    key: SongKey | None = None
+    tempo: int | None = None
+    source_url: str = Field(serialization_alias="sourceUrl")
+
+
+class SongSearchResponse(ApiModel):
+    results: list[SongKeyResult]
+    attribution: str
+    source_url: str = Field(serialization_alias="sourceUrl")
+    cached: bool = False
+
+
 class Category(ApiModel):
     id: str
     title: str
@@ -48,3 +71,4 @@ class Health(ApiModel):
     status: Literal["ok"]
     version: str
     youtube: Literal["configured", "not-configured"]
+    song_keys: Literal["configured", "not-configured"] = Field(serialization_alias="songKeys")

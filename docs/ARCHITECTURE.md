@@ -10,9 +10,9 @@ src/features/
   live-keys/engine/      Pure TS DSP + key estimation (no React/Expo)
   live-keys/hooks/       useLiveAnalysis: expo-audio stream → engine
   live-keys/components/  KeyPanel, PitchPanel
-  songs/components/      SongForm, TranspositionWorkspace
+  songs/components/      SongForm, TranspositionWorkspace, SongKeySheet (online song-key pop-up)
   rehearsals/services/   Recording lifecycle rules + expo-file-system store
-  learning/              Curriculum, exercise generators/validators, video-provider boundary
+  learning/              Curriculum (reading lessons), video-provider boundary
 src/db/                  Db interface, migrations, repositories (no UI imports)
 src/providers/data.tsx   SQLiteProvider + repositories + settings context
 src/services/midi/       MIDI parser + input service
@@ -37,7 +37,7 @@ Expo Router 58 with `src/app` as the routes root.
 - Secondary routes:
   - `songs/[id]`, `songs/create`, `songs/edit/[id]`
   - `rehearsals/create`, `rehearsals/[id]`, `rehearsals/record/[id]`, `rehearsals/playback/[id]`
-  - `learn/[id]` (lesson), `learn/exercise/[id]`
+  - `learn/[id]` (lesson), `learn/videos` (tutorial search), `learn/watch/[id]` (in-app YouTube player)
   - `settings/index`, `settings/input`, `settings/account`
 - `index.tsx` redirects to `/onboarding` on first launch and to `/live-keys` otherwise. The onboarding flag is stored
   in SQLite.
@@ -67,7 +67,7 @@ Expo Router 58 with `src/app` as the routes root.
 
 ## Audio architecture
 
-1. **Capture.** The `useAudioStream` hook from expo-audio (SDK 57) delivers mono float32 PCM buffers to JS. 16 kHz is
+1. **Capture.** The `useAudioStream` hook from expo-audio (SDK 58) delivers mono float32 PCM buffers to JS. 16 kHz is
    requested, and the actual rate is honoured.
 2. **Preprocessing** (`preprocess.ts`). Convert to mono float, then resample to 16 kHz with a streaming box-filter low
    pass plus linear interpolation. Samples go into a ring buffer (4096 samples), and DC is removed per frame.

@@ -14,9 +14,10 @@ this service stores nothing about users.
 
 | Method | Path | Description |
 | --- | --- | --- |
-| GET | `/health` | `{status, version, youtube: configured \| not-configured}` |
+| GET | `/health` | `{status, version, youtube, songKeys}`; each is `configured` or `not-configured` |
 | GET | `/v1/videos/categories` | Curated tutorial categories aligned with the app's lessons |
 | GET | `/v1/videos/search?q=&category=&difficulty=&pageToken=` | Up to 12 embeddable videos (safe search forced) |
+| GET | `/v1/songs/search?q=` | Up to 15 songs matching a title, each with its published key (`{tonic, mode}`) and tempo, from GetSongBPM |
 | GET | `/docs` | Interactive OpenAPI docs |
 
 Errors are JSON `{reason, message}`:
@@ -50,7 +51,8 @@ python -m venv .venv
 .venv\Scripts\python -m pip install -r requirements-dev.txt
 ```
 
-Copy `.env.example` to `.env` and set `YOUTUBE_API_KEY`, then start the server:
+Copy `.env.example` to `.env` and set `YOUTUBE_API_KEY` (video tutorials) and `GETSONGBPM_API_KEY` (song keys), then
+start the server:
 
 ```bash
 .venv\Scripts\python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
@@ -66,6 +68,13 @@ with `--clear`. Windows may ask to allow Python through the firewall.
 2. Go to **APIs & Services → Credentials → Create credentials → API key**.
 3. Restrict the key to the YouTube Data API v3. Server keys can't use Android app restrictions, because the server
    calls the API, not the app.
+
+## Getting a GetSongBPM API key
+
+Song-key search uses the free [GetSongBPM API](https://getsongbpm.com/api). Register there to get a key and put it in
+`GETSONGBPM_API_KEY`. Their terms require a visible link back to getsongbpm.com: the app shows "Song keys from
+GetSongBPM.com" under every set of results and in each song pop-up, and the store listing should mention it too. Without
+the key, `/v1/songs/search` returns `503 not-configured` and the Songs tab only searches the local songbook.
 
 ## Tests and lint
 

@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     youtube_api_key: str = Field(default="", description="YouTube Data API v3 key. Server-side only.")
+    getsongbpm_api_key: str = Field(default="", description="GetSongBPM API key (song keys). Server-side only.")
     allowed_origins: str = Field(default="http://localhost:8081")
     rate_limit_per_minute: int = Field(default=30, ge=1, le=1000)
     trust_proxy: bool = False
@@ -20,6 +21,10 @@ class Settings(BaseSettings):
     @property
     def youtube_configured(self) -> bool:
         return bool(self.youtube_api_key.strip())
+
+    @property
+    def songkeys_configured(self) -> bool:
+        return bool(self.getsongbpm_api_key.strip())
 
     @property
     def origins(self) -> list[str]:

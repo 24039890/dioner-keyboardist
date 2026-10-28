@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState, useCallback } from 'react';
-import { Alert, StyleSheet, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, View } from 'react-native';
 
 import { ListRow, Screen, ScreenHeader } from '@/components/ui/layout';
 import { AppText, Banner, Button, Card, EmptyState, IconButton, LoadingState, SectionHeading } from '@/components/ui/primitives';
@@ -119,14 +119,21 @@ export default function SongDetailScreen() {
     <Screen>
       <ScreenHeader
         action={
-          <IconButton
-            icon={song.isSaved ? 'bookmark' : 'bookmark-outline'}
-            label={song.isSaved ? 'Remove from saved' : 'Save song'}
-            onPress={toggleSaved}
-          />
+          <View style={styles.headerActions}>
+            <IconButton
+              icon={song.isSaved ? 'star' : 'star-outline'}
+              label={song.isSaved ? 'Remove from saved' : 'Save song'}
+              onPress={toggleSaved}
+            />
+            <IconButton
+              icon="create-outline"
+              label="Edit song"
+              onPress={() => router.push({ pathname: '/songs/edit/[id]', params: { id: song.id } })}
+            />
+          </View>
         }
         back
-        subtitle={song.artist ?? 'User-created chart'}
+        subtitle={[song.artist, song.songNumber ? `No. ${song.songNumber}` : null].filter(Boolean).join(' · ') || undefined}
         title={song.title}
       />
       {error ? (
@@ -134,22 +141,6 @@ export default function SongDetailScreen() {
           <Banner tone="error">{error}</Banner>
         </View>
       ) : null}
-
-      <Card style={styles.summary} tinted>
-        <View style={{ flex: 1 }}>
-          <AppText color={colors.textSecondary} variant="caption">
-            Original key
-          </AppText>
-          <AppText variant="subheading">{keyLabel(song.originalKey)}</AppText>
-        </View>
-        <View style={{ flex: 1 }}>
-          <AppText color={colors.textSecondary} variant="caption">
-            Song number
-          </AppText>
-          <AppText variant="subheading">{song.songNumber ?? '—'}</AppText>
-        </View>
-        <Button label="Edit" onPress={() => router.push({ pathname: '/songs/edit/[id]', params: { id: song.id } })} variant="secondary" />
-      </Card>
 
       <TranspositionWorkspace offset={offset} onOffsetChange={setOffset} originalKey={song.originalKey} sections={song.sections} />
 
@@ -163,12 +154,6 @@ export default function SongDetailScreen() {
           <Button label="Rewrite saved chart in this key…" loading={busy} onPress={applyTransposition} variant="ghost" />
         ) : null}
       </View>
-
-      {song.tags.length ? (
-        <AppText color={colors.textSecondary} style={{ marginTop: spacing.md }} variant="small">
-          Tags: {song.tags.join(', ')}
-        </AppText>
-      ) : null}
 
       {song.notes ? (
         <>
@@ -188,34 +173,36 @@ export default function SongDetailScreen() {
         </>
       ) : null}
 
-      <SectionHeading title="Source" />
-      <AppText color={colors.textSecondary} variant="small">
-        {song.sourceAttribution ?? 'No source recorded (user-created).'}
-      </AppText>
+      {history.length > 0 ? <SectionHeading title="Rehearsals" /> : null}
+      {history.map((r) => (
+        <ListRow
+          icon="mic-outline"
+          key={r.id}
+          onPress={() => router.push({ pathname: '/rehearsals/[id]', params: { id: r.id } })}
+          subtitle={`${new Date(r.createdAt).toLocaleDateString()} · ${r.recordingCount} recording${r.recordingCount === 1 ? '' : 's'} · ${formatDuration(r.totalDurationMs)}`}
+          title={r.title}
+        />
+      ))}
 
-      <SectionHeading detail={`${history.length} on this device`} title="Rehearsal history" />
-      {history.length === 0 ? (
-        <AppText color={colors.textSecondary} variant="small">
-          No rehearsals for this song yet.
+      {song.sourceAttribution || song.tags.length ? (
+        <AppText color={colors.textSecondary} style={{ marginTop: spacing.lg }} variant="caption">
+          {[song.sourceAttribution ? `Source: ${song.sourceAttribution}` : null, song.tags.length ? `Tags: ${song.tags.join(', ')}` : null]
+            .filter(Boolean)
+            .join('  ·  ')}
         </AppText>
-      ) : (
-        history.map((r) => (
-          <ListRow
-            icon="mic-outline"
-            key={r.id}
-            onPress={() => router.push({ pathname: '/rehearsals/[id]', params: { id: r.id } })}
-            subtitle={`${new Date(r.createdAt).toLocaleDateString()} · ${r.recordingCount} recording${r.recordingCount === 1 ? '' : 's'} · ${formatDuration(r.totalDurationMs)}`}
-            title={r.title}
-          />
-        ))
-      )}
+      ) : null}
 
-      <Button label="Delete song" onPress={confirmDelete} style={{ marginTop: spacing.xl }} variant="ghost" />
+      <Pressable accessibilityRole="button" onPress={confirmDelete} style={styles.delete}>
+        <AppText color={colors.textSecondary} variant="bodyStrong">
+          Delete song
+        </AppText>
+      </Pressable>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  summary: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm },
+  headerActions: { flexDirection: 'row', gap: spacing.xs },
+  delete: { alignSelf: 'center', minHeight: 48, justifyContent: 'center', marginTop: spacing.lg },
   actions: { gap: spacing.xs, marginTop: spacing.sm },
 });

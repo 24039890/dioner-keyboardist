@@ -5,6 +5,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { ListRow, Screen, ScreenHeader } from '@/components/ui/layout';
 import { AppText, Card, Icon, SectionHeading, Segmented } from '@/components/ui/primitives';
+import { SLOGAN } from '@/config/brand';
 import { useCloud } from '@/features/auth/CloudProvider';
 import { useFocusedQuery } from '@/hooks/useAsync';
 import { useRepositories, useSettings } from '@/providers/data';
@@ -66,14 +67,9 @@ export default function SettingsScreen() {
         }
         title="Stored on this device"
       />
-      <ListRow
-        icon="lock-closed-outline"
-        subtitle="Live Keys analyses audio on the phone; nothing is uploaded. Recordings are kept in private app storage."
-        title="Privacy"
-      />
 
       <AppText color={colors.textSecondary} style={styles.version} variant="caption">
-        {`DIONER Keyboardist · version ${Constants.expoConfig?.version ?? 'unknown'}`}
+        {`DIONER Keyboardist · ${SLOGAN} · v${Constants.expoConfig?.version ?? '?'}`}
       </AppText>
     </Screen>
   );

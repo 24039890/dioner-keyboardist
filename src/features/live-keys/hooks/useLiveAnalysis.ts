@@ -101,7 +101,8 @@ export function useLiveAnalysis() {
   const stop = useCallback(() => {
     stopStream();
     analyzerRef.current.reset();
-    setStatus('idle', { snapshot: null, message: null });
+    // Keep the last snapshot so the result stays on screen after stopping.
+    setStatus('idle', { message: null });
   }, [setStatus, stopStream]);
 
   // Release the microphone when the app goes to the background.

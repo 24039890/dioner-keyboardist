@@ -35,7 +35,7 @@ npm start
 | Runtime | What it proves | Notes |
 | --- | --- | --- |
 | JS bundle export | The code compiles and bundles for Android | Verified here |
-| Expo Go | UI, SQLite, recording and playback | Expo Go only bundles first-party modules. All modules used are first-party, including `useAudioStream`. Expo Go must match the project SDK (57); a newer project shows "incompatible with this version of Expo Go" |
+| Expo Go | UI, SQLite, recording and playback | Expo Go only bundles first-party modules. All modules used are first-party, including `useAudioStream`. Expo Go must match the project SDK (58); a newer project shows "incompatible with this version of Expo Go" |
 | Development build | Production-equivalent native code | **Recommended**: `npx expo run:android` (local SDK) or `eas build --profile development` |
 | Emulator | Navigation and storage | The emulator microphone is a poor test of key detection |
 | Physical device | Real microphone, latency, interruptions | Required before any accuracy or latency claim |

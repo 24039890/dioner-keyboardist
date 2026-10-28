@@ -7,7 +7,6 @@ import type { SongSection } from '@/db/repositories/songs';
 import {
   type Key,
   chordSymbolToNumber,
-  explainTransposition,
   formatOffset,
   keyLabel,
   keyShortLabel,
@@ -183,16 +182,16 @@ export function TranspositionWorkspace({
       )}
 
       {chart.errors.length > 0 ? (
-        <Banner title="Some symbols were left unchanged" tone="warning">
-          {`These could not be read as chords, so they are shown exactly as written: ${[...new Set(chart.errors.map((e) => e.match(/"([^"]+)"/)?.[1] ?? e))].join(', ')}`}
+        <Banner tone="warning">
+          {`Not recognised as chords (kept as written): ${[...new Set(chart.errors.map((e) => e.match(/"([^"]+)"/)?.[1] ?? e))].join(', ')}`}
         </Banner>
       ) : null}
 
-      <AppText color={colors.textSecondary} variant="small">
-        {notation === 'numbers'
-          ? `Number system: 1 is the tonic of the key; plain numbers use the chord that naturally occurs on that degree, and other qualities are written out (6m, 57, ♭7). Numbers are the same in every key.`
-          : explainTransposition(originalKey, offset)}
-      </AppText>
+      {notation === 'numbers' ? (
+        <AppText color={colors.textSecondary} variant="caption">
+          1 = the key’s home chord. Numbers stay the same in every key.
+        </AppText>
+      ) : null}
 
       <KeyPickerSheet
         confirmPrefix="Play in"

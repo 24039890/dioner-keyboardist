@@ -58,6 +58,7 @@
     "scheme": "dioner",
     "experiments": {
       "typedRoutes": false
-    }
+    },
+    "description": "Soar above every key. Find the song key live and play it in your own key."
   }
 }

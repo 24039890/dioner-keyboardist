@@ -5,6 +5,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { useState } from 'react';
 
 import { KeyPanel } from '@/features/live-keys/components/KeyPanel';
+import { TransposeCard } from '@/features/live-keys/components/TransposeCard';
 import type { KeyReading } from '@/features/live-keys/engine/keyEstimator';
 import { TranspositionWorkspace, lineToNumbers } from '@/features/songs/components/TranspositionWorkspace';
 
@@ -20,44 +21,110 @@ const reading = (over: Partial<KeyReading>): KeyReading => ({
   ...over,
 });
 
+const noop = () => undefined;
+
 describe('KeyPanel', () => {
-  test('idle state shows no key', async () => {
-    await render(<KeyPanel manualKey={null} reading={null} status="idle" />);
+  test('idle state invites the user to start', async () => {
+    await render(<KeyPanel manualKey={null} onHoldKey={noop} onPickKey={noop} reading={null} status="idle" />);
     expect(screen.getByText('—')).toBeTruthy();
-    expect(screen.getByText('Not listening')).toBeTruthy();
+    expect(screen.getByText('Tap Start and play or sing')).toBeTruthy();
   });
 
-  test('insufficient evidence never shows a key', async () => {
-    await render(<KeyPanel manualKey={null} reading={reading({ status: 'insufficient', key: null, level: null })} status="listening" />);
-    expect(screen.getByText('Listening…')).toBeTruthy();
-    expect(screen.getByText('Not enough evidence yet')).toBeTruthy();
-    expect(screen.queryByText('C Major')).toBeNull();
-  });
-
-  test('ambiguous relative keys are explained', async () => {
+  test('insufficient evidence shows progress and never a key', async () => {
     await render(
       <KeyPanel
         manualKey={null}
-        reading={reading({ status: 'ambiguous', key: null, level: null, relativeAmbiguity: true })}
+        onHoldKey={noop}
+        onPickKey={noop}
+        reading={reading({ status: 'insufficient', key: null, level: null, evidence: 1.25 })}
         status="listening"
       />,
     );
-    expect(screen.getByText('Undetermined')).toBeTruthy();
-    expect(screen.getByText(/C Major and A Minor/)).toBeTruthy();
+    expect(screen.getByText('Listening…')).toBeTruthy();
+    expect(screen.getByLabelText('Listening progress').props.accessibilityValue.now).toBe(50);
+    expect(screen.queryByText('C Major')).toBeNull();
   });
 
-  test('estimated key with confidence and a possible key change', async () => {
-    await render(<KeyPanel manualKey={null} reading={reading({ possibleKeyChange: { tonic: 3, mode: 'major' } })} status="listening" />);
+  test('a close call offers one-tap choices including the relative key', async () => {
+    const picked: string[] = [];
+    await render(
+      <KeyPanel
+        manualKey={null}
+        onHoldKey={noop}
+        onPickKey={(k) => picked.push(`${k.tonic}:${k.mode}`)}
+        reading={reading({
+          status: 'ambiguous',
+          key: null,
+          level: null,
+          relativeAmbiguity: true,
+          candidates: [
+            { key: { tonic: 0, mode: 'major' }, score: 0.7 },
+            { key: { tonic: 7, mode: 'major' }, score: 0.69 },
+          ],
+        })}
+        status="listening"
+      />,
+    );
+    expect(screen.getByText('Close call')).toBeTruthy();
+    expect(screen.getByText('G Major')).toBeTruthy();
+    await fireEvent.press(screen.getByText('A Minor'));
+    expect(picked).toEqual(['9:minor']);
+  });
+
+  test('estimated key shows confidence, its main chords, hold and a possible key change', async () => {
+    const held: string[] = [];
+    await render(
+      <KeyPanel
+        manualKey={null}
+        onHoldKey={(k) => held.push(`${k.tonic}`)}
+        onPickKey={noop}
+        reading={reading({ possibleKeyChange: { tonic: 3, mode: 'major' } })}
+        status="listening"
+      />,
+    );
     expect(screen.getByText('C Major')).toBeTruthy();
-    expect(screen.getByText('High confidence')).toBeTruthy();
-    expect(screen.getByText(/Possible key change → E♭ Major/)).toBeTruthy();
+    expect(screen.getByText('Sure')).toBeTruthy();
+    expect(screen.getByText(/C · F · G · Am/)).toBeTruthy();
+    expect(screen.getByText(/Key may be changing → E♭ Major/)).toBeTruthy();
+    await fireEvent.press(screen.getByText('Hold this key'));
+    expect(held).toEqual(['0']);
   });
 
-  test('manual key overrides and mentions the detected key', async () => {
-    await render(<KeyPanel manualKey={{ tonic: 2, mode: 'major' }} reading={reading({})} status="listening" />);
+  test('after stopping, the last result stays visible', async () => {
+    await render(<KeyPanel manualKey={null} onHoldKey={noop} onPickKey={noop} reading={reading({})} status="idle" />);
+    expect(screen.getByText('C Major')).toBeTruthy();
+    expect(screen.getByText('Last result')).toBeTruthy();
+  });
+
+  test('a held key overrides and mentions what the music suggests', async () => {
+    await render(
+      <KeyPanel manualKey={{ tonic: 2, mode: 'major' }} onHoldKey={noop} onPickKey={noop} reading={reading({})} status="listening" />,
+    );
     expect(screen.getByText('D Major')).toBeTruthy();
-    expect(screen.getByText('Set manually')).toBeTruthy();
-    expect(screen.getByText(/currently suggests C Major/)).toBeTruthy();
+    expect(screen.getByText(/music now suggests C Major/)).toBeTruthy();
+  });
+});
+
+describe('TransposeCard', () => {
+  test('asks for the keyboardist key when not set', async () => {
+    let asked = 0;
+    await render(<TransposeCard onChangePlayKey={() => asked++} playKey={null} songKey={null} />);
+    await fireEvent.press(screen.getByText('Set my key'));
+    expect(asked).toBe(1);
+  });
+
+  test('shows the transpose value and chord map for the detected song key', async () => {
+    await render(<TransposeCard onChangePlayKey={noop} playKey={{ tonic: 0, mode: 'major' }} songKey={{ tonic: 2, mode: 'major' }} />);
+    expect(screen.getByText('+2')).toBeTruthy();
+    expect(screen.getByText('Set Transpose to +2')).toBeTruthy();
+    expect(screen.getByText('Bm')).toBeTruthy();
+  });
+
+  test('waits for a song key and handles same key', async () => {
+    await render(<TransposeCard onChangePlayKey={noop} playKey={{ tonic: 0, mode: 'major' }} songKey={null} />);
+    expect(screen.getByText(/once the song key is found/)).toBeTruthy();
+    await render(<TransposeCard onChangePlayKey={noop} playKey={{ tonic: 0, mode: 'major' }} songKey={{ tonic: 9, mode: 'minor' }} />);
+    expect(screen.getByText(/The song is in your key/)).toBeTruthy();
   });
 });
 
